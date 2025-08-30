@@ -18,7 +18,6 @@ export class LoginUseCase {
       throw new Error('Password must be at least 6 characters');
     }
 
-    // Execute login through repository
     return await this.authRepository.login(credentials);
   }
 

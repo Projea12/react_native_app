@@ -3,12 +3,10 @@ import { IAuthRepository } from '../repositories/IAuthRepository';
 
 export class SignupUseCase {
   constructor(private authRepository: IAuthRepository) {}
-
+  
   async execute(credentials: SignupCredentials): Promise<User> {
-    // Validate credentials
     this.validateCredentials(credentials);
 
-    // Execute signup through repository
     return await this.authRepository.signup(credentials);
   }
 
