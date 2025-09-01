@@ -13,6 +13,8 @@ import { RootStackParamList } from '../../../types/navigation';
 import PasswordInput, { TextInputGlobal } from '../../core/component/textinput';
 import { AppButton } from '../../core/component/button';
 import { globalStyles } from '../../core/component/styles';
+import { useAuth } from '../contexts/AuthContext';
+import { useNotify } from '../../core/component/toast';
 
 type LoginScreenNavigationProp = NativeStackNavigationProp<
   RootStackParamList,
@@ -26,9 +28,16 @@ interface Props {
 const LoginScreen: React.FC<Props> = ({ navigation }) => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-
-  const handleLogin = () => {
-    // login logic
+  const {login} = useAuth();
+  const notify = useNotify();
+  const handleLogin = async () => {
+    try {
+      await login(email, password);
+      notify("success", "Welcome back!", "Login Successful 🎉");
+      navigation.replace("Home");
+    } catch (err: any) {
+      notify("error", err.nativeErrorMessage || "Something went wrong", "Login Failed ❌");
+    }
   };
 
   return (
@@ -38,14 +47,14 @@ const LoginScreen: React.FC<Props> = ({ navigation }) => {
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
       >
         <ScrollView
-          contentContainerStyle={styles.scrollContainer}
+          contentContainerStyle={globalStyles.scrollContainer}
           keyboardShouldPersistTaps="handled"
         >
-          <View style={styles.card}>
-            <Text style={styles.title}>Welcome Back 👋</Text>
-            <Text style={styles.subtitle}>Login to continue</Text>
+          <View style={globalStyles.card}>
+            <Text style={globalStyles.title}>Welcome Back 👋</Text>
+            <Text style={globalStyles.subtitle}>Login to continue</Text>
 
-            <View style={styles.inputContainer}>
+            <View style={globalStyles.inputContainer}>
               <TextInputGlobal
                 value={email}
                 onChangeText={setEmail}
@@ -60,10 +69,10 @@ const LoginScreen: React.FC<Props> = ({ navigation }) => {
 
             <AppButton title="Login" onPress={handleLogin} />
 
-            <Text style={styles.footerText}>
+            <Text style={globalStyles.footerText}>
               Don’t have an account?{' '}
               <Text
-                style={styles.link}
+                style={globalStyles.link}
                 onPress={() => navigation.navigate('Signup')}
               >
                 Sign up
@@ -76,47 +85,5 @@ const LoginScreen: React.FC<Props> = ({ navigation }) => {
   );
 };
 
-const styles = StyleSheet.create({
-  scrollContainer: {
-    flexGrow: 1,
-    justifyContent: 'center',
-    padding: 20,
-  },
-  card: {
-    backgroundColor: '#fff',
-    padding: 24,
-    height:400,
-    width:280,
-    borderRadius: 16,
-    shadowColor: '#000',
-    shadowOpacity: 0.1,
-    shadowRadius: 10,
-    elevation: 5,
-  },
-  title: {
-    fontSize: 26,
-    fontWeight: '700',
-    textAlign: 'center',
-    marginBottom: 8,
-  },
-  subtitle: {
-    fontSize: 16,
-    textAlign: 'center',
-    color: '#666',
-    marginBottom: 24,
-  },
-  inputContainer: {
-    marginBottom: 20,
-  },
-  footerText: {
-    textAlign: 'center',
-    marginTop: 16,
-    color: '#444',
-  },
-  link: {
-    color: '#007AFF',
-    fontWeight: '600',
-  },
-});
 
 export default LoginScreen;
