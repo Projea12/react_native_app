@@ -1,162 +1,69 @@
-import React, { createContext, useContext, useReducer, useEffect, ReactNode } from 'react';
-import { User } from '../../domain/entities/User';
-import { LoginUseCase } from '../../domain/usecases/LoginUseCase';
-import { SignupUseCase } from '../../domain/usecases/SignupUseCase';
+import React, { createContext, useContext, useReducer, useEffect, ReactNode, useState } from 'react';
 import { AuthRepository } from '../../data/repositories/AuthRepository';
+import { AuthUser } from '../../domain/entities/auth_user';
+import { IAuthRepository } from '../../domain/repositories/IAuthRepository';
 
-interface AuthState {
-  user: User | null;
-  isLoading: boolean;
-  isAuthenticated: boolean;
-  error: string | null;
-}
-
-type AuthAction =
-  | { type: 'AUTH_START' }
-  | { type: 'AUTH_SUCCESS'; payload: User }
-  | { type: 'AUTH_FAILURE'; payload: string }
-  | { type: 'LOGOUT' }
-  | { type: 'CLEAR_ERROR' };
-
-interface AuthContextType {
-  state: AuthState;
-  login: (email: string, password: string) => Promise<void>;
-  signup: (fullName: string, email: string, password: string, confirmPassword: string) => Promise<void>;
-  logout: () => Promise<void>;
-  clearError: () => void;
-}
-
-const initialState: AuthState = {
-  user: null,
-  isLoading: false,
-  isAuthenticated: false,
-  error: null,
+type AuthState = {
+  user: AuthUser | null;
+  loading: boolean;
 };
 
-const authReducer = (state: AuthState, action: AuthAction): AuthState => {
-  switch (action.type) {
-    case 'AUTH_START':
-      return {
-        ...state,
-        isLoading: true,
-        error: null,
-      };
-    case 'AUTH_SUCCESS':
-      return {
-        ...state,
-        isLoading: false,
-        user: action.payload,
-        isAuthenticated: true,
-        error: null,
-      };
-    case 'AUTH_FAILURE':
-      return {
-        ...state,
-        isLoading: false,
-        user: null,
-        isAuthenticated: false,
-        error: action.payload,
-      };
-    case 'LOGOUT':
-      return {
-        ...state,
-        user: null,
-        isAuthenticated: false,
-        error: null,
-      };
-    case 'CLEAR_ERROR':
-      return {
-        ...state,
-        error: null,
-      };
-    default:
-      return state;
-  }
+type AuthContextType = {
+  state: AuthState;
+  signIn: (email: string, password: string) => Promise<void>;
+  login: (email: string, password: string) => Promise<void>;
+  signOut: () => Promise<void>;
 };
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
-interface AuthProviderProps {
-  children: ReactNode;
-}
+export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+  const repository: IAuthRepository = new AuthRepository();
 
-export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
-  const [state, dispatch] = useReducer(authReducer, initialState);
-
-  const authRepository = new AuthRepository();
-  const loginUseCase = new LoginUseCase(authRepository);
-  const signupUseCase = new SignupUseCase(authRepository);
+  const [state, setState] = useState<AuthState>({
+    user: null,
+    loading: true,
+  });
 
   useEffect(() => {
-    const checkAuthStatus = async () => {
+    const init = async () => {
       try {
-        const currentUser = await authRepository.getCurrentUser();
-        if (currentUser) {
-          dispatch({ type: 'AUTH_SUCCESS', payload: currentUser });
-        }
-      } catch (error) {
-        console.log('No authenticated user found');
+        const currentUser = await repository.getCurrentUser(); // ✅ call function
+        setState({ user: currentUser, loading: false });
+      } catch (err) {
+        setState({ user: null, loading: false });
       }
     };
-
-    checkAuthStatus();
+    init();
   }, []);
 
-  const login = async (email: string, password: string): Promise<void> => {
-    try {
-      dispatch({ type: 'AUTH_START' });
-      const user = await loginUseCase.execute({ email, password });
-      dispatch({ type: 'AUTH_SUCCESS', payload: user });
-    } catch (error) {
-      dispatch({ type: 'AUTH_FAILURE', payload: error instanceof Error ? error.message : 'Login failed' });
-      throw error;
-    }
+  const signIn = async (email: string, password: string) => {
+    const user = await repository.signIn(email, password);
+    setState({ user, loading: false });
   };
 
-  const signup = async (
-    fullName: string,
-    email: string,
-    password: string,
-    confirmPassword: string
-  ): Promise<void> => {
-    try {
-      dispatch({ type: 'AUTH_START' });
-      const user = await signupUseCase.execute({ fullName, email, password, confirmPassword });
-      dispatch({ type: 'AUTH_SUCCESS', payload: user });
-    } catch (error) {
-      dispatch({ type: 'AUTH_FAILURE', payload: error instanceof Error ? error.message : 'Signup failed' });
-      throw error;
-    }
+  const login = async (email: string, password: string) => {
+    const user = await repository.Login(email, password);
+    setState({ user, loading: false }); 
   };
 
-  const logout = async (): Promise<void> => {
-    try {
-      await authRepository.logout();
-      dispatch({ type: 'LOGOUT' });
-    } catch (error) {
-      console.error('Logout error:', error);
-    }
+  const signOut = async () => {
+    await repository.signOut();
+    setState({ user: null, loading: false });
   };
 
-  const clearError = (): void => {
-    dispatch({ type: 'CLEAR_ERROR' });
-  };
-
-  const value: AuthContextType = {
-    state,
-    login,
-    signup,
-    logout,
-    clearError,
-  };
-
-  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
+  return (
+    <AuthContext.Provider value={{ state, signIn, login, signOut }}>
+      {children}
+    </AuthContext.Provider>
+  );
 };
 
+// --- Hook for consumers ---
 export const useAuth = (): AuthContextType => {
   const context = useContext(AuthContext);
-  if (context === undefined) {
-    throw new Error('useAuth must be used within an AuthProvider');
+  if (!context) {
+    throw new Error("useAuth must be used inside AuthProvider");
   }
   return context;
 };

@@ -1,52 +1,55 @@
+import auth from '@react-native-firebase/auth';
 import { User, AuthCredentials, SignupCredentials } from '../../domain/entities/User';
 import { IAuthRepository } from '../../domain/repositories/IAuthRepository';
+import { AuthUser } from '../../domain/entities/auth_user';
 
-export class AuthRepository implements IAuthRepository {
-  private currentUser: User | null = null;
 
-  async login(credentials: AuthCredentials): Promise<User> {
-    // Simulate API call
-    await new Promise(resolve => setTimeout(resolve, 1500));
-    
-    // For demo purposes, create a mock user
-    const user: User = {
-      id: Date.now().toString(),
-      email: credentials.email,
-      fullName: 'Demo User',
-      createdAt: new Date(),
-    };
-
-    this.currentUser = user;
-    return user;
+export class AuthRepository implements IAuthRepository{
+  async signIn(email: string, password: string): Promise<AuthUser> {
+    const res = await auth().createUserWithEmailAndPassword(email,password);
+    const user = res.user;
+    return{
+      uid:user.uid,
+      email:user.email,
+      displayName:user.displayName
+    }
   }
 
-  async signup(credentials: SignupCredentials): Promise<User> {
-    // Simulate API call
-    await new Promise(resolve => setTimeout(resolve, 1500));
-    
-    // For demo purposes, create a mock user
-    const user: User = {
-      id: Date.now().toString(),
-      email: credentials.email,
-      fullName: credentials.fullName,
-      createdAt: new Date(),
-    };
+  async Login(email: string, password: string): Promise<AuthUser> {
+    try {
+      const res = await auth().signInWithEmailAndPassword(email, password);
+      const user = res.user;
 
-    this.currentUser = user;
-    return user;
+      return {
+        uid: user.uid,
+        email: user.email,
+        displayName: user.displayName,
+      };
+    } catch (err: any) {
+      let message = "Login failed. Please try again.";
+      if (err.code === "auth/user-not-found") {
+        message = "No account found with this email.";
+      } else if (err.code === "auth/wrong-password") {
+        message = "Incorrect password.";
+      } else if (err.code === "auth/invalid-email") {
+        message = "Invalid email format.";
+      }
+      throw new Error(message);
+    }
   }
 
-  async logout(): Promise<void> {
-    // Simulate API call
-    await new Promise(resolve => setTimeout(resolve, 500));
-    this.currentUser = null;
+  async getCurrentUser(): Promise<AuthUser | null> {
+      const res = auth().currentUser;
+      if(!res) return null;
+
+      return {
+        uid:res.uid,
+        email:res.email,
+        displayName:res.displayName
+      }
   }
 
-  async getCurrentUser(): Promise<User | null> {
-    return this.currentUser;
-  }
-
-  async isAuthenticated(): Promise<boolean> {
-    return this.currentUser !== null;
+  async signOut():Promise<void> {
+    await auth().signOut();
   }
 }
