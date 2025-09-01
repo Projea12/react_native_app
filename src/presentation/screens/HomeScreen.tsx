@@ -24,9 +24,9 @@ interface Props {
 const HomeScreen: React.FC<Props> = ({ navigation }) => {
   const { state, logout } = useAuth();
   useEffect(() => {
-    if (!state.isAuthenticated || !state.user) {
-      navigation.navigate('Login');
-    }
+    // if (!state.isAuthenticated || !state.user) {
+    //   navigation.navigate('Login');
+    // }
   }, [state.isAuthenticated, state.user, navigation]);
 
   const handleLogout = () => {

@@ -10,7 +10,7 @@ export class SignupUseCase {
     return await this.authRepository.signup(credentials);
   }
 
-  private validateCredentials(credentials: SignupCredentials): void {
+  private async validateCredentials(credentials: SignupCredentials):Promise<User>{
     if (!credentials.fullName?.trim()) {
       throw new Error('Full name is required');
     }
@@ -38,6 +38,7 @@ export class SignupUseCase {
     if (credentials.password !== credentials.confirmPassword) {
       throw new Error('Passwords do not match');
     }
+    return await this.authRepository.signup(credentials);
   }
 
   private isValidEmail(email: string): boolean {
