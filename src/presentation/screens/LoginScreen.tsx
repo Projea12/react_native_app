@@ -34,7 +34,7 @@ const LoginScreen: React.FC<Props> = ({ navigation }) => {
     try {
       await login(email, password);
       notify("success", "Welcome back!", "Login Successful 🎉");
-      navigation.replace("Home");
+      navigation.replace("Search");
     } catch (err: any) {
       notify("error", err.nativeErrorMessage || "Something went wrong", "Login Failed ❌");
     }

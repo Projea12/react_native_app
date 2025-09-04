@@ -8,21 +8,26 @@ import LoginScreen from "./src/presentation/screens/LoginScreen";
 import SignupScreen from "./src/presentation/screens/SignupScreen";
 import HomeScreen from "./src/presentation/screens/HomeScreen";
 import { NotifyProvider } from "./src/core/component/toast";
+import SearchScreen from "./src/presentation/screens/SearchScreen";
+import { ConversationProvider } from "./src/presentation/contexts/SearchContext";
 
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
 export default function App() {
   return (
     <AuthProvider>
+      <ConversationProvider>
       <NavigationContainer>
         <NotifyProvider>
           <Stack.Navigator screenOptions={{ headerShown: false }}>
             <Stack.Screen name="Login" component={LoginScreen} />
             <Stack.Screen name="Signup" component={SignupScreen} />
             <Stack.Screen name="Home" component={HomeScreen} />
+            <Stack.Screen name="Search" component={SearchScreen}/>
           </Stack.Navigator>
         </NotifyProvider>
       </NavigationContainer>
+      </ConversationProvider>
     </AuthProvider>
   );
 }
