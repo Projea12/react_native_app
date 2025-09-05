@@ -15,8 +15,7 @@ import { useConversation } from "../contexts/SearchContext";
 import { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import { RootStackParamList } from "../../../types/navigation";
 
-
-const OPENAI_API_KEY = '';
+const OPENAI_API_KEY = "";
 const OPENAI_API_URL = "https://api.openai.com/v1/chat/completions";
 
 const artisans = [
@@ -28,136 +27,77 @@ const artisans = [
 
 type SearchScreenNavigationProp = NativeStackNavigationProp<
   RootStackParamList,
-  'Search'
+  "Search"
 >;
 
 interface Props {
   navigation: SearchScreenNavigationProp;
 }
 
-const SearchScreen: React.FC<Props> = ({ navigation }) =>{
+const SearchScreen: React.FC<Props> = ({ navigation }) => {
   const { conversation, setConversation } = useConversation();
   const [isListening, setIsListening] = useState(false);
   const [spokenText, setSpokenText] = useState("");
   const [results, setResults] = useState<any[]>([]);
   const [pulseAnim] = useState(new Animated.Value(1));
 
-  // ---- Intent Extraction ----
-
-
-  // const getIntent = async (text: string, prevConversation: any) => {
-  //   const prompt = `
-  //   Extract intent from this request: "${text}".
-  //   Fields: skill, location, time.
-  //   Use previous conversation context: ${JSON.stringify(prevConversation)}.
-  //   If some field is missing, respond with JSON including missingFields array.
-
-  //   Example:
-  //   { "skill": "Plumber", "location": null, "time": null, "missingFields": ["location","time"] }
-  //   `;
-
-  //   const res = await client.chat.completions.create({
-  //     model: "gpt-4o-mini",
-  //     messages: [{ role: "user", content: prompt }],
-  //   });
-
-  //   try {
-  //     return JSON.parse(res.choices[0]?.message?.content || "{}");
-  //   } catch (err) {
-  //     console.log("Parse error", err);
-  //     return null;
-  //   }
-  // };
-
   const getIntent = async (text: string, prevConversation: any) => {
     console.log("🔍 Starting intent extraction for text:", text);
-    
+
     const prompt = `
     Extract intent from this request: "${text}".
     Fields: skill, location, time.
     Use previous conversation context: ${JSON.stringify(prevConversation)}.
     If some field is missing, respond with JSON including missingFields array.
-  
+
     Example:
     { "skill": "Plumber", "location": null, "time": null, "missingFields": ["location","time"] }
     `;
 
     const requestBody = {
       model: "gpt-4o-mini",
-      messages: [
-        {
-          role: "user",
-          content: prompt
-        }
-      ],
+      messages: [{ role: "user", content: prompt }],
       max_tokens: 150,
-      temperature: 0.3
+      temperature: 0.3,
     };
-  
+
     try {
-      console.log("📡 Making OpenAI API call with fetch...");
-      console.log("🌐 API URL:", OPENAI_API_URL);
-      
       const response = await fetch(OPENAI_API_URL, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          "Authorization": `Bearer ${OPENAI_API_KEY}`
+          Authorization: `Bearer ${OPENAI_API_KEY}`,
         },
-        body: JSON.stringify(requestBody)
+        body: JSON.stringify(requestBody),
       });
 
-      console.log("📊 Response status:", response.status);
-      console.log("📊 Response ok:", response.ok);
-      
       if (!response.ok) {
         const errorText = await response.text();
-        console.error("❌ API Error response:", errorText);
         throw new Error(`HTTP ${response.status}: ${errorText}`);
       }
 
       const data = await response.json();
-      console.log("✅ OpenAI API response received:", data);
-  
-      try {
-        const content = data.choices?.[0]?.message?.content || "{}";
-        console.log("📝 Raw AI response content:", content);
-        
-        // Clean the content by removing markdown code blocks
-        let cleanContent = content;
-        if (content.includes('```json')) {
-          cleanContent = content.replace(/```json\s*/, '').replace(/```\s*$/, '').trim();
-          console.log("🧹 Cleaned content:", cleanContent);
-        } else if (content.includes('```')) {
-          cleanContent = content.replace(/```\s*/, '').replace(/```\s*$/, '').trim();
-          console.log("🧹 Cleaned content:", cleanContent);
-        }
-        
-        const parsed = JSON.parse(cleanContent);
-        console.log("✅ Successfully parsed AI intent:", parsed);
-        return parsed;
-      } catch (parseErr) {
-        console.error("❌ JSON Parse error:", parseErr);
-        console.error("❌ Raw content that failed to parse:", data.choices?.[0]?.message?.content);
-        return null;
+      const content = data.choices?.[0]?.message?.content || "{}";
+      console.log("📝 Raw AI response content:", content);
+
+      // --- JSON extraction fix ---
+      let cleanContent = content.trim();
+      const match = cleanContent.match(/\{[\s\S]*\}/);
+      if (match) {
+        cleanContent = match[0];
       }
-    } catch (apiErr: any) {
-      console.error("❌ OpenAI API Error:", apiErr);
-      console.error("❌ Error message:", apiErr.message);
-      
-      if (apiErr.message?.includes('404')) {
-        console.error("❌ 404 Error - Invalid URL or endpoint");
+      if (cleanContent.includes("```")) {
+        cleanContent = cleanContent.replace(/```json|```/g, "").trim();
       }
-      if (apiErr.message?.includes('401')) {
-        console.error("❌ 401 Error - Invalid API key");
-      }
-      if (apiErr.message?.includes('429')) {
-        console.error("❌ 429 Error - Rate limit exceeded");
-      }
+
+      const parsed = JSON.parse(cleanContent);
+      console.log("✅ Successfully parsed AI intent:", parsed);
+      return parsed;
+    } catch (err: any) {
+      console.error("❌ OpenAI API Error:", err.message);
       return null;
     }
   };
-  
 
   // ---- Handlers ----
   const onSpeechStart = useCallback(() => {
@@ -172,19 +112,16 @@ const SearchScreen: React.FC<Props> = ({ navigation }) =>{
   const onSpeechResults = useCallback(
     async (event: any) => {
       console.log("🎤 Speech results received:", event);
-      
+
       if (event.value && event.value.length > 0) {
         const text = event.value[0];
         console.log("🗣️ Speech text:", text);
         setSpokenText(text);
 
         const aiIntent = await getIntent(text, conversation);
-        if (!aiIntent) {
-          console.log("❌ Failed to get AI intent, returning");
-          return;
-        }
+        if (!aiIntent) return;
 
-        console.log("💭 Setting conversation with intent:", aiIntent);
+        console.log("💭 Updating conversation with intent:", aiIntent);
         setConversation(aiIntent);
 
         if (aiIntent.missingFields && aiIntent.missingFields.length > 0) {
@@ -199,11 +136,19 @@ const SearchScreen: React.FC<Props> = ({ navigation }) =>{
           }
           setResults([]);
         } else {
-          console.log("🔍 Filtering artisans with skill:", aiIntent.skill, "location:", aiIntent.location);
+          // --- Relaxed filtering fix ---
+          console.log(
+            "🔍 Filtering artisans with skill:",
+            aiIntent.skill,
+            "location:",
+            aiIntent.location
+          );
           const filtered = artisans.filter(
             (a) =>
-              a.skill.toLowerCase() === aiIntent.skill?.toLowerCase() &&
-              a.location.toLowerCase() === aiIntent.location?.toLowerCase()
+              (!aiIntent.skill ||
+                a.skill.toLowerCase().includes(aiIntent.skill.toLowerCase().trim())) &&
+              (!aiIntent.location ||
+                a.location.toLowerCase().includes(aiIntent.location.toLowerCase().trim()))
           );
           console.log("📋 Filtered results:", filtered);
           setResults(filtered);
@@ -216,76 +161,50 @@ const SearchScreen: React.FC<Props> = ({ navigation }) =>{
   );
 
   useEffect(() => {
-    console.log("🔧 Setting up Voice listeners...");
     Voice.onSpeechStart = onSpeechStart;
     Voice.onSpeechEnd = onSpeechEnd;
     Voice.onSpeechResults = onSpeechResults;
-
-    // Add error handlers
-    Voice.onSpeechError = (event: any) => {
-      console.error("❌ Speech Error:", event);
-    };
-
-    Voice.onSpeechVolumeChanged = (event: any) => {
-      console.log("🔊 Speech volume changed:", event);
-    };
+    Voice.onSpeechError = (event: any) => console.error("❌ Speech Error:", event);
 
     const checkPermission = async () => {
-      console.log("🔐 Checking permissions...");
-      console.log("📱 Platform:", Platform.OS);
-      
       if (Platform.OS === "android") {
         try {
           const result = await PermissionsAndroid.request(
             PermissionsAndroid.PERMISSIONS.RECORD_AUDIO
           );
-          console.log("🔐 Permission result:", result);
-          
-          if (result === PermissionsAndroid.RESULTS.GRANTED) {
-            console.log("✅ Audio permission granted");
-          } else {
+          if (result !== PermissionsAndroid.RESULTS.GRANTED) {
             console.error("❌ Audio permission denied:", result);
           }
         } catch (permissionError) {
           console.error("❌ Permission request failed:", permissionError);
         }
-      } else {
-        console.log("📱 iOS platform - no explicit permission request needed");
       }
     };
     checkPermission();
 
     return () => {
-      console.log("🧹 Cleaning up Voice listeners...");
       Voice.destroy().then(Voice.removeAllListeners);
     };
   }, [onSpeechStart, onSpeechEnd, onSpeechResults]);
 
   // ---- Mic Control ----
   const startListening = async () => {
-    console.log("🎤 Starting to listen...");
     try {
-      console.log("🔊 Calling Voice.start with locale: en-US");
       await Voice.start("en-US");
-      console.log("✅ Voice.start successful");
       setIsListening(true);
       startPulse();
     } catch (error) {
       console.error("❌ Start Listening Error:", error);
-      console.error("❌ Error details:", JSON.stringify(error, null, 2));
     }
   };
 
   const stopListening = async () => {
-    console.log("🛑 Stopping listening...");
     try {
       await Voice.stop();
-      console.log("✅ Voice.stop successful");
       setIsListening(false);
       stopPulse();
     } catch (error) {
       console.error("❌ Stop Listening Error:", error);
-      console.error("❌ Error details:", JSON.stringify(error, null, 2));
     }
   };
 
